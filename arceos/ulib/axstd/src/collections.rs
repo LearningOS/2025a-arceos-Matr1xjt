@@ -1,10 +1,12 @@
+#[cfg(feature = "alloc")]
+use alloc::vec::Vec;
 
-use crate::vec::Vec;
+#[cfg(feature = "alloc")]
 pub struct HashMap<K, V> {
     keys: Vec<K>,
     values: Vec<V>,
 }
-
+#[cfg(feature = "alloc")]
 impl<K, V> HashMap<K, V> {
     pub fn new() -> Self {
         Self {
