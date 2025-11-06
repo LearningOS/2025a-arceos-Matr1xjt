@@ -9,6 +9,9 @@ homepage.workspace = true
 repository = "https://github.com/arceos-org/arceos/tree/main/modules/axfs"
 documentation = "https://arceos-org.github.io/arceos/axfs/index.html"
 
+[patch.crates-io]
+axfs_ramfs = {path = "../../axfs_ramfs"}
+
 [features]
 devfs = ["dep:axfs_devfs"]
 ramfs = ["dep:axfs_ramfs"]
@@ -29,11 +32,13 @@ axio = { version = "0.1", features = ["alloc"] }
 axerrno = "0.1"
 axfs_vfs = "0.1"
 axfs_devfs = { version = "0.1", optional = true }
-axfs_ramfs = { version = "0.1", optional = true }
+axfs_ramfs = { path = "../../axfs_ramfs", optional = true }
 crate_interface = { version = "0.1", optional = true }
 axsync = { workspace = true }
 axdriver = { workspace = true, features = ["block"] }
 axdriver_block = { git = "https://github.com/arceos-org/axdriver_crates.git", tag = "v0.1.0" }
+
+
 
 [dependencies.fatfs]
 git = "https://github.com/rafalh/rust-fatfs"

@@ -46,6 +46,7 @@ impl DirNode {
             log::error!("AlreadyExists {}", name);
             return Err(VfsError::AlreadyExists);
         }
+        log::debug!("Creating node {:?} {}", ty, name);
         let node: VfsNodeRef = match ty {
             VfsNodeType::File => Arc::new(FileNode::new()),
             VfsNodeType::Dir => Self::new(Some(self.this.clone())),
@@ -65,6 +66,22 @@ impl DirNode {
             }
         }
         children.remove(name);
+        Ok(())
+    }
+    pub fn rename_node(&self, old_name: &str, new_name: &str) -> VfsResult {
+        let mut children = self.children.write();
+
+        // 从/tmp/f1取出f1
+        let old_name = old_name.split('/').last().unwrap();
+        let new_name = new_name.split('/').last().unwrap();
+        if !children.contains_key(old_name) {
+            return Err(VfsError::NotFound);
+        }
+        if children.contains_key(new_name) {
+            return Err(VfsError::AlreadyExists);
+        }
+        let node = children.remove(old_name).unwrap();
+        children.insert(new_name.into(), node);
         Ok(())
     }
 }
@@ -164,8 +181,11 @@ impl VfsNodeOps for DirNode {
             self.remove_node(name)
         }
     }
-
-    axfs_vfs::impl_vfs_dir_default! {}
+    // axfs_vfs::impl_vfs_dir_default! {}
+    fn rename(&self, src_path: &str, dst_path: &str) -> VfsResult {
+        self.rename_node(src_path, dst_path)
+    }
+    
 }
 
 fn split_path(path: &str) -> (&str, Option<&str>) {

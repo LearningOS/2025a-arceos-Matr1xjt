@@ -51,6 +51,5 @@ impl VfsNodeOps for FileNode {
         dst.copy_from_slice(&buf[..dst.len()]);
         Ok(buf.len())
     }
-
     impl_vfs_non_dir_default! {}
 }

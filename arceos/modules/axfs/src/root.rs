@@ -306,5 +306,6 @@ pub(crate) fn rename(old: &str, new: &str) -> AxResult {
         warn!("dst file already exist, now remove it");
         remove_file(None, new)?;
     }
+    log::debug!("rename from {} to {}", old, new);
     parent_node_of(None, old).rename(old, new)
 }

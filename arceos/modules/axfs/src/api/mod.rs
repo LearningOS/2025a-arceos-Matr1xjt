@@ -85,5 +85,6 @@ pub fn remove_file(path: &str) -> io::Result<()> {
 ///
 /// This only works then the new path is in the same mounted fs.
 pub fn rename(old: &str, new: &str) -> io::Result<()> {
+    log::debug!("******************************fs::rename from {} to {}", old, new);
     crate::root::rename(old, new)
 }
