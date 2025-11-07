@@ -130,7 +130,11 @@ fn handle_syscall(tf: &TrapFrame, syscall_num: usize) -> isize {
     };
     ret
 }
-
+use axstd::vec;
+use axhal::mem::VirtAddr;
+use memory_addr::align_up;
+use memory_addr::VirtAddrRange;
+// 系统调用 sys_mmap 用于在进程的地址空间中映射一段内存区域。
 #[allow(unused_variables)]
 fn sys_mmap(
     addr: *mut usize,
@@ -140,7 +144,85 @@ fn sys_mmap(
     fd: i32,
     _offset: isize,
 ) -> isize {
-    unimplemented!("no sys_mmap!");
+    syscall_body!(sys_mmap, {  
+        // // 如果没有写权限，则返回错误。
+        // if !MmapProt::from_bits_truncate(prot).contains(MmapProt::PROT_WRITE) {
+        //     return Err(LinuxError::EINVAL);
+        // }
+        let prot = MmapProt::from_bits_truncate(prot);
+        let flags = MmapFlags::from_bits_truncate(flags);
+        let mapping_flags: MappingFlags = prot.into();
+        let curr = current();
+        let len_aligned = align_up(length, axhal::mem::PAGE_SIZE_4K);
+        ax_println!("prot={:#x}, flags={:#x}", mapping_flags, flags);
+        // 如果指定了 MAP_FIXED 标志，则使用传入的地址进行映射。
+        let va = if flags.contains(MmapFlags::MAP_FIXED) {
+            VirtAddr::from(addr as usize)
+        } else {
+            // 没有指定 MAP_FIXED 的情况
+            let hint_va = VirtAddr::from(addr as usize);
+            let user_limit = VirtAddrRange::new(
+                VirtAddr::from(0x0000_0000_0000_0000usize),
+                VirtAddr::from(0x0000_0000_8000_0000usize),
+            );
+            let aspace = curr.task_ext().aspace.lock();
+            aspace
+                .find_free_area(hint_va, len_aligned, user_limit)
+                .ok_or(LinuxError::ENOMEM)?
+            
+        };
+        // 打印当前进程的信息
+        ax_println!( 
+            "sys_mmap: pid={} mapping va={:#x} len={} flags={:?} fd={} offset={}",
+            curr.id().as_u64(),
+            va.as_usize(),
+            len_aligned,
+
+            flags,
+            fd,
+            _offset,
+        );
+
+            let mut file_buf = vec![0u8; len_aligned];
+            api::sys_lseek(fd, _offset as i64, 0);
+            let read_bytes = api::sys_read(fd, file_buf.as_mut_ptr() as *mut c_void, len_aligned);
+
+            let mut aspace = curr.task_ext().aspace.lock();
+            let mut dst_va = va;
+            let mut copied = 0;
+            let mapping_flags = mapping_flags | MappingFlags::WRITE;
+            while copied < read_bytes {
+                aspace.map_alloc(
+                    dst_va,
+                    axhal::mem::PAGE_SIZE_4K,
+                    mapping_flags,
+                    true,
+                ).map_err(|_| LinuxError::ENOMEM)?;
+                ax_println!(
+                    "sys_mmap: mapped va={:#x} for pid={} flags ={:?}",
+                    dst_va.as_usize(),
+                    curr.id().as_u64(),
+                    mapping_flags
+                );
+
+                let remain = core::cmp::min(read_bytes - copied, axhal::mem::PAGE_SIZE_4K as isize);
+                unsafe {
+                    core::ptr::copy_nonoverlapping(
+                        file_buf.as_ptr().add(copied as usize),
+                        dst_va.as_mut_ptr(),
+                        remain as usize,
+                    );
+                }
+                ax_println!(
+                    "  -> copied {} bytes to va={:#x}",
+                    remain,
+                    dst_va.as_usize()
+                );
+                copied += remain;
+                dst_va += axhal::mem::PAGE_SIZE_4K;
+            }
+        Ok(va.as_usize() as isize)
+    })
 }
 
 fn sys_openat(dfd: c_int, fname: *const c_char, flags: c_int, mode: api::ctypes::mode_t) -> isize {

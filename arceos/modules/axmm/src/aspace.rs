@@ -82,6 +82,7 @@ impl AddrSpace {
     /// The search starts from the given hint address, and the area should be within the given limit range.
     ///
     /// Returns the start address of the free area. Returns None if no such area is found.
+    /// 从给定的提示地址开始搜索，并且该区域应在给定的限制范围内。
     pub fn find_free_area(
         &self,
         hint: VirtAddr,
@@ -90,6 +91,7 @@ impl AddrSpace {
     ) -> Option<VirtAddr> {
         self.areas.find_free_area(hint, size, limit)
     }
+
 
     /// Add a new linear mapping.
     ///
