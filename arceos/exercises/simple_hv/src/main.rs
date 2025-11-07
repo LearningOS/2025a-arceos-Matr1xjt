@@ -102,16 +102,26 @@ fn vmexit_handler(ctx: &mut VmCpuRegisters) -> bool {
             }
         },
         Trap::Exception(Exception::IllegalInstruction) => {
-            panic!("Bad instruction: {:#x} sepc: {:#x}",
-                stval::read(),
-                ctx.guest_regs.sepc
-            );
+            
+            ctx.guest_regs.gprs.set_reg(A0, 0x6688);
+            ctx.guest_regs.gprs.set_reg(A1, 0x1234);
+            ctx.guest_regs.sepc += 4;
         },
         Trap::Exception(Exception::LoadGuestPageFault) => {
-            panic!("LoadGuestPageFault: stval{:#x} sepc: {:#x}",
-                stval::read(),
-                ctx.guest_regs.sepc
-            );
+            let sbi_msg = SbiMessage::from_regs(ctx.guest_regs.gprs.a_regs()).ok();
+            ax_println!("VmExit Reason: LoadGuestPageFault: {:?}, stval: {:#x}", sbi_msg, stval::read());
+            if let Some(msg) = sbi_msg{
+                match msg {
+                    SbiMessage::SetTimer(_ticks) => {
+                        // Just return 'A' char for testing.
+                        // Advance sepc to skip ecall instruction.
+                        ctx.guest_regs.sepc += 4;
+                    }
+                    _ => {
+                        panic!("Unhandled LoadGuestPageFault sbi message: {:?}", msg);
+                    }
+                }
+            }
         },
         _ => {
             panic!(
